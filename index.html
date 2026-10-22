@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Projeto Vida - Financeiro</title>
+<meta name="theme-color" content="#FAFAFC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Financeiro">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://script.google.com https://*.googleusercontent.com; connect-src 'self'; manifest-src 'self'; worker-src 'self'">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* Casca do app: só a moldura, o aviso de instalação e o botão de ligar avisos. Os dados ficam no app. */
+:root{--bg:#FAFAFC;--surface:#fff;--text:#1E1E2A;--text-2:#5E5E6E;--line:#E8E8EF;--accent:#5266EB;--ease:cubic-bezier(.2,.7,.2,1)}
+@media (prefers-color-scheme:dark){:root{--bg:#121318;--surface:#18191F;--text:#ECECF2;--text-2:#A3A3B3;--line:#2A2C36;--accent:#8A99FF}}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+#app{position:fixed;inset:0;width:100%;height:100%;border:0;padding-top:env(safe-area-inset-top);box-sizing:border-box;background:var(--bg)}
+#aviso{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:440px;margin:0 auto;background:var(--surface);color:var(--text);
+ border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(30,30,42,.16);padding:14px 14px 14px 16px;display:flex;gap:12px;align-items:center;
+ transform:translateY(16px);opacity:0;transition:transform .28s var(--ease),opacity .28s var(--ease);z-index:10}
+#aviso.on{transform:none;opacity:1}
+#aviso[hidden]{display:none}
+#aviso .t{flex:1;min-width:0}#aviso b{display:block;font-weight:600;font-size:14.5px}#aviso small{color:var(--text-2);font-size:12.5px}
+#aviso button{border:0;border-radius:10px;height:40px;padding:0 14px;font:inherit;font-weight:600;cursor:pointer;transition:transform .12s var(--ease)}
+#aviso button:active{transform:scale(.97)}
+#sim{background:var(--text);color:var(--bg)}#nao{background:transparent;color:var(--text-2);padding:0 8px!important}
+@media (prefers-reduced-motion:reduce){#aviso{transition:none}}
+</style>
+</head>
+<body>
+<iframe id="app" title="Projeto Vida - Financeiro" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
+<div id="aviso" role="dialog" aria-live="polite" hidden><div class="t"><b id="av-t"></b><small id="av-s"></small></div><button id="nao" type="button">Agora não</button><button id="sim" type="button"></button></div>
+<script>
+(function () {
+'use strict';
+var APP = 'https://script.google.com/macros/s/AKfycbyU_MshIMAE7JlRoEnONx-KEUTc7_pPE63TsSKaU8rKf7tW5EVfoRKlb7Bld9oax8-3sg/exec';
+var $ = function (id) { return document.getElementById(id); };
+function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function gravar(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+// Conta Google (só para quem tem várias logadas): ?u=email na 1ª abertura fica guardado.
+var u = new URLSearchParams(location.search).get('u');
+if (u && /^[^@\s]+@[^@\s]+$/.test(u)) gravar('pvf_casca_u', u); else u = ler('pvf_casca_u');
+$('app').src = APP + (u ? '?authuser=' + encodeURIComponent(u) : '');
+
+var instalado = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+var podePush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+var reg = null, appJanela = null, appOrigem = null, estado = null;
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(function (r) { reg = r; }).catch(function () { });
+
+function mostrar(t, s, botao, acao) {
+  $('av-t').textContent = t; $('av-s').textContent = s; $('sim').textContent = botao; $('sim').hidden = !botao;
+  $('sim').onclick = acao; $('aviso').hidden = false; requestAnimationFrame(function () { $('aviso').classList.add('on'); });
+}
+function esconder() { $('aviso').classList.remove('on'); setTimeout(function () { $('aviso').hidden = true; }, 300); }
+$('nao').onclick = function () { gravar('pvf_casca_adiado', String(Date.now())); esconder(); };
+function adiadoRecente() { var t = Number(ler('pvf_casca_adiado') || 0); return Date.now() - t < 3 * 864e5; }
+function paraApp(m) { if (appJanela) { m.pvf = 1; appJanela.postMessage(m, appOrigem); } }
+function b64u(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function deB64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), o = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) o[i] = b.charCodeAt(i); return o; }
+function nomeAparelho() { var a = navigator.userAgent; return /iPhone/.test(a) ? 'iPhone' : /iPad/.test(a) ? 'iPad' : /Android/.test(a) ? 'Android' : /Mac/.test(a) ? 'Mac' : /Windows/.test(a) ? 'Windows' : 'Navegador'; }
+
+function inscrever(novo) {
+  var pronto = reg ? Promise.resolve(reg) : navigator.serviceWorker.ready;
+  return pronto.then(function (r) {
+    return r.pushManager.getSubscription().then(function (s) {
+      if (s && s.options && s.options.applicationServerKey && b64u(s.options.applicationServerKey) !== estado.chave) return s.unsubscribe().then(function () { return null; });
+      return s;
+    }).then(function (s) { return s || r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deB64u(estado.chave) }); });
+  }).then(function (s) { paraApp({ tipo: 'inscricao', sub: s.toJSON(), aparelho: nomeAparelho(), novo: !!novo }); });
+}
+function decidir() {
+  if (!estado || !estado.logado) return;
+  if (ios && !instalado) {   // no iPhone/iPad o aviso só funciona com o app instalado na Tela de Início
+    if (!adiadoRecente()) mostrar('Instale o app para receber avisos', 'Toque em Compartilhar e depois em "Adicionar à Tela de Início".', '', null);
+    return;
+  }
+  if (!podePush || !estado.chave) return;
+  if (Notification.permission === 'granted') return inscrever(false).catch(function () { });
+  if (Notification.permission === 'default' && !adiadoRecente()) {
+    mostrar('Ligar avisos neste aparelho?', 'Pedidos de pagamento e pagamentos feitos chegam como notificação.', 'Ligar', function () {
+      Notification.requestPermission().then(function (p) {
+        if (p !== 'granted') { esconder(); return; }
+        $('sim').textContent = 'Ligando…';
+        inscrever(true).catch(function () { mostrar('Não foi possível ligar os avisos', 'Tente de novo mais tarde.', '', null); });
+      });
+    });
+  }
+}
+window.addEventListener('message', function (ev) {
+  var m = ev.data;
+  if (!/^https:\/\/[a-z0-9.-]+\.googleusercontent\.com$/.test(ev.origin) || !m || m.pvf !== 1) return;
+  appJanela = ev.source; appOrigem = ev.origin;
+  if (m.tipo === 'app-pronto') return paraApp({ tipo: 'casca', instalado: instalado });
+  if (m.tipo === 'estado') { estado = m; if (!m.logado) esconder(); return decidir(); }
+  if (m.tipo === 'inscrito') { if (m.ok) esconder(); }
+});
+})();
+</script>
+</body>
+</html>
