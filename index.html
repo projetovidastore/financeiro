@@ -45,7 +45,8 @@ function gravar(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
 // Conta Google (só para quem tem várias logadas): ?u=email na 1ª abertura fica guardado.
 var u = new URLSearchParams(location.search).get('u');
 if (u && /^[^@\s]+@[^@\s]+$/.test(u)) gravar('pvf_casca_u', u); else u = ler('pvf_casca_u');
-$('app').src = APP + (u ? '?authuser=' + encodeURIComponent(u) : '');
+var URL_APP = APP + (u ? '?authuser=' + encodeURIComponent(u) : '');
+$('app').src = URL_APP;
 
 var instalado = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -58,7 +59,15 @@ function mostrar(t, s, botao, acao) {
   $('sim').onclick = acao; $('aviso').hidden = false; requestAnimationFrame(function () { $('aviso').classList.add('on'); });
 }
 function esconder() { $('aviso').classList.remove('on'); setTimeout(function () { $('aviso').hidden = true; }, 300); }
-$('nao').onclick = function () { gravar('pvf_casca_adiado', String(Date.now())); esconder(); };
+function naoPadrao() { $('nao').textContent = 'Agora não'; $('nao').onclick = function () { gravar('pvf_casca_adiado', String(Date.now())); esconder(); }; }
+naoPadrao();
+// Se o app não responder (bloqueado pelo navegador, sem internet), não deixa a tela em branco.
+var appRespondeu = false;
+setTimeout(function () {
+  if (appRespondeu) return;
+  mostrar('O app não abriu aqui', 'Abra direto no navegador; seus dados continuam protegidos pelo login.', 'Abrir o app', function () { location.href = URL_APP; });
+  $('nao').textContent = 'Tentar de novo'; $('nao').onclick = function () { location.reload(); };
+}, 15000);
 function adiadoRecente() { var t = Number(ler('pvf_casca_adiado') || 0); return Date.now() - t < 3 * 864e5; }
 function paraApp(m) { if (appJanela) { m.pvf = 1; appJanela.postMessage(m, appOrigem); } }
 function b64u(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
@@ -96,6 +105,7 @@ window.addEventListener('message', function (ev) {
   var m = ev.data;
   if (!/^https:\/\/[a-z0-9.-]+\.googleusercontent\.com$/.test(ev.origin) || !m || m.pvf !== 1) return;
   appJanela = ev.source; appOrigem = ev.origin;
+  if (!appRespondeu) { appRespondeu = true; naoPadrao(); if (!estado) esconder(); }
   if (m.tipo === 'app-pronto') return paraApp({ tipo: 'casca', instalado: instalado });
   if (m.tipo === 'estado') { estado = m; if (!m.logado) esconder(); return decidir(); }
   if (m.tipo === 'inscrito') { if (m.ok) esconder(); }
