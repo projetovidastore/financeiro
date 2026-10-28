@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Projeto Vida - Financeiro</title>
-<meta name="theme-color" content="#FAFAFC">
+<meta name="theme-color" content="#F5F5F7">
+<meta name="color-scheme" content="light only">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Financeiro">
@@ -16,8 +17,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 /* Casca do app: só a moldura, o aviso de instalação e o botão de ligar avisos. Os dados ficam no app. */
-:root{--bg:#FAFAFC;--surface:#fff;--text:#1E1E2A;--text-2:#5E5E6E;--line:#E8E8EF;--accent:#5266EB;--ease:cubic-bezier(.2,.7,.2,1)}
-@media (prefers-color-scheme:dark){:root{--bg:#121318;--surface:#18191F;--text:#ECECF2;--text-2:#A3A3B3;--line:#2A2C36;--accent:#8A99FF}}
+:root{color-scheme:light;--bg:#F5F5F7;--surface:#fff;--text:#1D1D1F;--text-2:#6E6E73;--line:rgba(60,60,67,.12);--accent:#FF7A08;--ease:cubic-bezier(.2,.7,.2,1)}
+/* sempre claro (como o app, v29) */
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 #app{position:fixed;inset:0;width:100%;height:100%;border:0;padding-top:env(safe-area-inset-top);box-sizing:border-box;background:var(--bg)}
 #aviso{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:440px;margin:0 auto;background:var(--surface);color:var(--text);
