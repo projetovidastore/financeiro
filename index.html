@@ -43,6 +43,17 @@ var APP = 'https://script.google.com/macros/s/AKfycbyU_MshIMAE7JlRoEnONx-KEUTc7_
 var $ = function (id) { return document.getElementById(id); };
 function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function gravar(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+// v30: sessão "manter conectado" guardada AQUI (1ª parte: o aparelho não apaga, ao contrário do app dentro da moldura).
+// Só volta para o mesmo app (mesma origem que pediu para guardar).
+function lerSessao() { try { var s = JSON.parse(ler('pvf_casca_sessao') || 'null'); return s && typeof s.t === 'string' && s.u && s.o ? s : null; } catch (e) { return null; } }
+function guardarSessao(m, origem) {
+  try {
+    if (m.token === null) { localStorage.removeItem('pvf_casca_sessao'); return; }
+    var u = m.user || {};
+    if (typeof m.token !== 'string' || m.token.length > 4000 || !u.id || !u.papel) return;
+    gravar('pvf_casca_sessao', JSON.stringify({ t: m.token, o: origem, u: { id: String(u.id), nome: String(u.nome || '').slice(0, 120), papel: String(u.papel), email: String(u.email || '').slice(0, 200) } }));
+  } catch (e) { }
+}
 // Conta Google (só para quem tem várias logadas): ?u=email na 1ª abertura fica guardado.
 var u = new URLSearchParams(location.search).get('u');
 if (u && /^[^@\s]+@[^@\s]+$/.test(u)) gravar('pvf_casca_u', u); else u = ler('pvf_casca_u');
@@ -107,9 +118,11 @@ function decidir() {
 window.addEventListener('message', function (ev) {
   var m = ev.data;
   if (!/^https:\/\/[a-z0-9.-]+\.googleusercontent\.com$/.test(ev.origin) || !m || m.pvf !== 1) return;
+  try { if (!ev.source || ev.source.top !== window) return; } catch (e) { return; }   // v30: só o app que está DENTRO desta moldura
   appJanela = ev.source; appOrigem = ev.origin;
   if (!appRespondeu) { appRespondeu = true; naoPadrao(); if (!estado) esconder(); }
-  if (m.tipo === 'app-pronto') return paraApp({ tipo: 'casca', instalado: instalado, inset: { b: insetBaixo() } });
+  if (m.tipo === 'app-pronto') { var ss = lerSessao(); return paraApp({ tipo: 'casca', instalado: instalado, inset: { b: insetBaixo() }, sessao: ss && ss.o === ev.origin ? { token: ss.t, user: ss.u } : null }); }
+  if (m.tipo === 'sessao') return guardarSessao(m, ev.origin);
   if (m.tipo === 'estado') { estado = m; if (!m.logado) esconder(); return decidir(); }
   if (m.tipo === 'inscrito') { if (m.ok) esconder(); }
 });
